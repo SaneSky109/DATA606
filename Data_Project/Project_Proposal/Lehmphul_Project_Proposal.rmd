@@ -1,0 +1,283 @@
+---
+title: "DATA 606 Data Project Proposal"
+author: "Eric Lehmphul"
+date: "10/31/2021"
+output: pdf_document
+---
+
+```{r include = FALSE}
+knitr::opts_chunk$set(fig.align="center", fig.width = 6)
+```
+
+# Data Preparation
+
+Retrieved dataset from Kaggle: https://www.kaggle.com/sulianova/cardiovascular-disease-dataset. It is a dataset relating to cardiovascular disease and relative variables of interest.
+
+```{r}
+library(tidyverse)
+
+# load data
+
+cardio.data <- read.csv("https://raw.githubusercontent.com/SaneSky109/DATA606/main/Data_Project/Data/cardio_train.csv", sep = ";")
+```
+
+```{r}
+# remove unecessary column: id
+cardio.data <- cardio.data[,-1]
+```
+
+```{r}
+# create factors
+cardio.data$cardio <- factor(cardio.data$cardio)
+cardio.data$gender <- factor(cardio.data$gender)
+cardio.data$cholesterol <- factor(cardio.data$cholesterol)
+cardio.data$gluc <- factor(cardio.data$gluc)
+cardio.data$smoke <- factor(cardio.data$smoke)
+cardio.data$alco <- factor(cardio.data$alco)
+cardio.data$active <- factor(cardio.data$active)
+```
+
+```{r}
+# rename factor levels
+
+levels(cardio.data$cardio) <- c("No", "Yes")
+levels(cardio.data$gender) <- c("Female", "Male")
+levels(cardio.data$cholesterol) <- c("Normal", "Above_Normal", "Well_Above_Normal")
+levels(cardio.data$gluc) <- c("Normal", "Above_Normal", "Well_Above_Normal")
+levels(cardio.data$smoke) <- c("No", "Yes")
+levels(cardio.data$alco) <- c("No", "Yes")
+levels(cardio.data$active) <- c("No", "Yes")
+```
+
+```{r}
+# transform age since it is in days
+
+cardio.data$age <- cardio.data$age/365
+
+# remove outliers of ap_hi
+
+# I am assuming the that these measures are errors and 
+# I am just dropping them due to problems it will cause with modeling 
+# Highest pressure recorded in an individual was 370/360.(https://pubmed.ncbi.nlm.nih.gov/7741618/)
+
+summary(cardio.data$ap_hi)
+
+cardio.data <- cardio.data[cardio.data$ap_hi <= 370,]
+cardio.data <- cardio.data[cardio.data$ap_hi > 0,]
+
+summary(cardio.data$ap_hi)
+
+
+# remove outliers of ap_lo
+
+
+summary(cardio.data$ap_lo)
+
+cardio.data <- cardio.data[cardio.data$ap_lo <= 360,]
+cardio.data <- cardio.data[cardio.data$ap_lo > 0,]
+
+summary(cardio.data$ap_lo)
+```
+
+
+```{r}
+glimpse(cardio.data)
+```
+
+
+# Research question 
+
+My research question is: **Do gender, age, body weight, body height, blood pressure, cholesterol, glucose levels, smoking, drinking alcohol and activity level of an individual significantly influence the likelihood of contracting cardiovascular disease?**
+
+I aim to determine what variables are the most important determining factors to cardiovascular disease given the data presented in the dataset.
+
+
+# Cases 
+
+The cases are the number of people who participate in the medical examination. There were a total of 70,000 cases in the original data file. After data pre-processing, the number of cases is 68,985. This change is due to the removal of rows that seemed to be errors such as extremely high and low blood pressure (-1,000 or 15,000). 
+
+```{r}
+nrow(cardio.data)
+```
+
+
+# Data collection 
+
+The data was collected from medical information given by patient and examination results. "All of the dataset values were collected at the moment of medical examination." (https://www.kaggle.com/sulianova/cardiovascular-disease-dataset)
+
+The data was downloaded from Kaggle (https://www.kaggle.com/sulianova/cardiovascular-disease-dataset) and then I uploaded it to Github to be used to import the data into R.
+
+# Type of study 
+
+This is an observational study since the analysis is on events that have already occurred. 
+
+# Data Source 
+
+The link to where I retrieved the data is: https://www.kaggle.com/sulianova/cardiovascular-disease-dataset
+
+# Dependent Variable
+
+The response variable is `cardio`. This is a qualitative variable since it is a categorical binary variable. `cardio` is an indicator variable that indicates whether or not someone has cardiovascular disease.
+
+# Independent Variable
+
+There are multiple variables that I am considering for analysis. The list contains a group of both quantitative and qualitative variables:
+
+* `age` (quantitative): Age of patient in years
+* `gender` (qualitative): Gender of patient
+* `height` (quantitative): Height of patient in cm
+* `weight` (quantitative): Weight of patient in kg
+* `ap_hi` (quantitative): Systolic blood pressure
+* `ap_lo` (quantitative): Diastolic blood pressure
+* `cholesterol` (qualitative): Cholesterol level of patient
+* `smoke` (qualitative): Binary variable to determine if a patient smokes
+* `alco` (qualitative): Binary variable to determine if a patient drinks alcohol
+* `gluc` (qualitative): Glucose level of patient
+* `active` (qualitative): Yes/No if patient is physically active
+
+# Relevant Summary Statistics 
+
+## Summary Statistics
+
+```{r}
+summary(cardio.data)
+```
+
+--------------------------------------------------------------------------------
+
+## Visualizations
+
+### Cardiovascular Disease Outcome by Age
+
+```{r}
+ggplot(cardio.data, aes(x=cardio, y=age)) +
+  geom_boxplot() +
+  ggtitle("Age by Cardiovascular Disease Level")
+
+plot(cardio.data$cardio ~ cardio.data$age, xlab = "Age",ylab = "Cardio", main = "Cardiovascular Outcome vs. Age")
+```
+
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Gender
+
+```{r}
+plot(cardio.data$cardio ~ cardio.data$gender, xlab = "Gender",ylab = "Cardio", main = "Cardiovascular Outcome vs. Gender")
+
+cardio.data %>%
+  group_by(gender) %>%
+  count(cardio)
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Height
+
+```{r}
+ggplot(cardio.data, aes(x=cardio, y=height)) +
+  geom_boxplot() +
+  ggtitle("Body Height (cm) by Cardiovascular Disease Level")
+
+plot(cardio.data$cardio ~ cardio.data$height, xlab = "Height",ylab = "Cardio", main = "Cardiovascular Outcome vs. Height")
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Weight
+
+```{r}
+ggplot(cardio.data, aes(x=cardio, y=weight)) +
+  geom_boxplot() +
+  ggtitle("Body Weight (kg) by Cardiovascular Disease Level")
+
+plot(cardio.data$cardio ~ cardio.data$weight, xlab = "Weight",ylab = "Cardio", main = "Cardiovascular Outcome vs. Weight")
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Systolic blood pressure
+
+```{r}
+ggplot(cardio.data, aes(x=cardio, y=ap_hi)) +
+  geom_boxplot() +
+  ggtitle("Systolic Blood Pressure by Cardiovascular Disease Level")
+
+plot(cardio.data$cardio ~ cardio.data$ap_hi, xlab = "Systolic Blood Pressure",ylab = "Cardio", main = "Cardiovascular Outcome vs. Systolic Blood Pressure")
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Diastolic blood pressure
+
+```{r}
+ggplot(cardio.data, aes(x=cardio, y=ap_lo)) +
+  geom_boxplot() +
+  ggtitle("Diastolic Blood Pressure by Cardiovascular Disease Level")
+
+plot(cardio.data$cardio ~ cardio.data$ap_hi, xlab = "Diastolic Blood Pressure",ylab = "Cardio", main = "Cardiovascular Outcome vs. Diastolic Blood Pressure")
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Cholesterol Level
+
+```{r}
+plot(cardio.data$cardio ~ cardio.data$cholesterol, xlab = "Cholesterol Level",ylab = "Cardio", main = "Cardiovascular Outcome vs. Cholesterol Level")
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Glucose Level
+
+```{r}
+plot(cardio.data$cardio ~ cardio.data$gluc, xlab = "Glucose Level",ylab = "Cardio", main = "Cardiovascular Outcome vs. Glucose Level")
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Smoking Level
+
+```{r}
+plot(cardio.data$cardio ~ cardio.data$smoke, xlab = "Smoking",ylab = "Cardio", main = "Cardiovascular Outcome vs. Smoking")
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Alcohol Level
+
+```{r}
+plot(cardio.data$cardio ~ cardio.data$alco, xlab = "Alcohol",ylab = "Cardio", main = "Cardiovascular Outcome vs. Alcohol Level")
+```
+
+--------------------------------------------------------------------------------
+
+\clearpage
+
+### Cardiovascular Disease Outcome by Activity Level
+
+```{r}
+plot(cardio.data$cardio ~ cardio.data$active, xlab = "Active",ylab = "Cardio", main = "Cardiovascular Outcome vs. Activity Level")
+```
+
+--------------------------------------------------------------------------------
+
+
