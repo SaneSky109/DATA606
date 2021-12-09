@@ -26,7 +26,7 @@ library(caret)
 
 ## Part 1 - Introduction
 
-Cardiovascular disease is a serious problem for many Americans.  According to the CDC, "heart disease is the leading cause of death in the United States" [2]. Though this is a stark statistic, there are steps that can be taken to reduce one's likelihood of contracting cardiovascular disease. A model that can predict heart disease can be leveraged to inform patients on which factors are most correlated with heart disease.
+Cardiovascular disease is a serious problem for many Americans.  According to the CDC, "heart disease is the leading cause of death in the United States" [2]. Though this is a stark statistic, there are steps that can be taken to reduce one's likelihood of contracting cardiovascular disease. A model that can predict heart disease can be leveraged to inform patients on which factors are most associated with heart disease.
 
 * Research Question:
   - **Are any of the following variables factors that predict cardiovascular disease?**
@@ -112,10 +112,10 @@ cardio.data$bmi <- cardio.data$weight/((cardio.data$height/100)^2)
 
 ### Cases
 
-After pre-processing the data, there are **68,985 cases** and **11 features**. Each observation represents a patient. The variables are listed in the table below (only showing first 50 observations).
+After pre-processing the data, there are **68,985 cases** and **12 features**. Each observation represents a patient. The variables are listed in the table below (only showing first 50 observations).
 
 ```{r, echo=FALSE}
-datatable(cardio.data[1:50,-c(8,13)])
+datatable(cardio.data[1:50,-c(13)])
 ```
 
 ### Dependent Variable
@@ -180,8 +180,6 @@ Since the variables `ap_hi`(Systolic blood pressure) and `ap_lo`(Diastolic blood
 
 
 #### Histograms
-
-Age, Blood pressure, 
 
 ```{r}
 ggplot(cardio.data, aes(x=age)) +
@@ -355,7 +353,7 @@ In the summary output above, `ap_hi` is statistically significant.
 
 
 * `ap_hi`
- + Every millimeter of mercury in `ap_hi` increases the log odds of `cardio` by 0.07
+  + Every millimeter of mercury in `ap_hi` increases the log odds of `cardio` by 0.07
 
 #### Analyze the predicted results of model
 
@@ -382,7 +380,7 @@ confusionMatrix(model.vs.testing1)
 
 After analyzing the data from the cardiovascular disease dataset, the data shows that **Systolic Blood Pressure** is a significant predictor in determining if a patient suffers from cardiovascular disease. I was able to generate a model that had 71.25% accuracy in predicting of an unknown patient suffers from cardiovascular disease. 
 
-I also created a model to assess the predicting power with all variables from the dataset in the model, except height and diastolic blood pressure. The model was able to reach an accuracy level of 72.86% in predicting if an unknown patient suffers from cardiovascular disease. This overall performance is not much better than that of the simpler model, therefore the variables in the simple model are the more important variables for predicting cardiovascular disease.
+I also created a model to assess the predicting power with all variables from the dataset in the model, except height, weight, diastolic blood pressure, and gender. The model was able to reach an accuracy level of 72.86% in predicting if an unknown patient suffers from cardiovascular disease. This overall performance is not much better than that of the simpler model, therefore the variables in the simple model are the more important variables for predicting cardiovascular disease.
 
 It can be concluded that **Blood Pressure** is the most associated factor in the dataset for predicting cardiovascular disease.
 
