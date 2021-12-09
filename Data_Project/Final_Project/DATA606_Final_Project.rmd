@@ -1,0 +1,399 @@
+---
+title: "Final Project: Cardiovascular Disease"
+author: "Eric Lehmphul"
+date: "11/30/2021"
+output:
+  rmdformats::readthedown:
+    code_folding: hide
+          
+---
+
+## Abstract
+
+  Cardiovascular disease is a major concern around the globe. The issue is so large that it is the leading cause of death globally, according to the WHO [1]. Risk factors for cardiovascular disease include age, poor diet, the lack of exercise, high blood pressure, high cholesterol, and smoking or drinking excessively. This research aims to identify the risk factors that are most associated with determining cardiovascular disease. To answer the research question, 2 logistic regression models were implemented. The first logistic regression model included 8 variables associated with the risk factors of cardiovascular disease (Age, Systolic Blood Pressure, Cholesterol, Activity level, Alcohol Abuse, Glucose level, and Smoking level) and generated a model accuracy of 72.86%. The second logistic regression model included only 1 risk factor of cardiovascular disease (Systolic Blood Pressure) and was able to generate a model accuracy of  71.25%. It can be concluded that High Blood Pressure is most associated with cardiovascular disease. Steps that can be taken to reduce one's blood pressure, and in turn cardiovascular disease chance, are to: lose weight, eat healthy, exercise regularly, and reduce stress[5].
+
+## Libraries
+
+```{r, message=FALSE, warning=FALSE, echo=TRUE}
+library(tidyverse)
+library(GGally)
+library(DT)
+library(vtable)
+library(ggpubr)
+library(MASS)
+library(caret)
+```
+
+## Part 1 - Introduction
+
+Cardiovascular disease is a serious problem for many Americans.  According to the CDC, "heart disease is the leading cause of death in the United States" [2]. Though this is a stark statistic, there are steps that can be taken to reduce one's likelihood of contracting cardiovascular disease. A model that can predict heart disease can be leveraged to inform patients on which factors are most correlated with heart disease.
+
+* Research Question:
+  - **Are any of the following variables factors that predict cardiovascular disease?**
+    + gender
+    + age
+    + body weight
+    + body height
+    + blood pressure
+    + cholesterol
+    + smoking
+    + drinking alcohol
+    + activity level
+
+  - **How effective is the model at predicting if a person is suffering from cardiovascular disease?**
+
+## Part 2 - Data
+
+The data source was found on Kaggle.com. The features in the dataset pertain to factual information collected from the patient, subjective information reported by the patient and results from medical examinations of the patient. All dataset values were collected at the moment of medical examination.
+
+Data Source: https://www.kaggle.com/sulianova/cardiovascular-disease-dataset
+
+
+
+```{r,results='hide'}
+options(scipen=10000)
+
+# load data
+url <- "https://raw.githubusercontent.com/SaneSky109/DATA606/main/Data_Project/Data/cardio_train.csv"
+cardio.data <- read.csv(url, sep = ";")
+
+# remove unecessary column: id
+cardio.data <- cardio.data[,-1]
+
+# create factors
+cardio.data$cardio <- factor(cardio.data$cardio)
+cardio.data$gender <- factor(cardio.data$gender)
+cardio.data$cholesterol <- factor(cardio.data$cholesterol)
+cardio.data$gluc <- factor(cardio.data$gluc)
+cardio.data$smoke <- factor(cardio.data$smoke)
+cardio.data$alco <- factor(cardio.data$alco)
+cardio.data$active <- factor(cardio.data$active)
+
+# rename factor levels
+levels(cardio.data$cardio) <- c("No", "Yes")
+levels(cardio.data$gender) <- c("Female", "Male")
+levels(cardio.data$cholesterol) <- c("Norm", "Higher", "Highest")
+levels(cardio.data$gluc) <- c("Norm", "Higher", "Highest")
+levels(cardio.data$smoke) <- c("No", "Yes")
+levels(cardio.data$alco) <- c("No", "Yes")
+levels(cardio.data$active) <- c("No", "Yes")
+
+# transform age since it is in days
+
+cardio.data$age <- round(cardio.data$age/365, 3)
+# remove outliers of ap_hi
+
+# I am assuming the that these measures are errors and 
+# I am just dropping them due to problems it will cause with modeling 
+# Highest pressure recorded in an individual was 370/360.(https://pubmed.ncbi.nlm.nih.gov/7741618/)
+
+summary(cardio.data$ap_hi)
+
+cardio.data <- cardio.data[cardio.data$ap_hi <= 370,]
+cardio.data <- cardio.data[cardio.data$ap_hi > 50,]
+
+summary(cardio.data$ap_hi)
+
+
+# remove outliers of ap_lo
+
+
+summary(cardio.data$ap_lo)
+
+cardio.data <- cardio.data[cardio.data$ap_lo <= 360,]
+cardio.data <- cardio.data[cardio.data$ap_lo > 25,]
+
+summary(cardio.data$ap_lo)
+
+
+cardio.data$bmi <- cardio.data$weight/((cardio.data$height/100)^2)
+
+```
+
+### Cases
+
+After pre-processing the data, there are **68,985 cases** and **11 features**. Each observation represents a patient. The variables are listed in the table below (only showing first 50 observations).
+
+```{r, echo=FALSE}
+datatable(cardio.data[1:50,-c(8,13)])
+```
+
+### Dependent Variable
+
+The response variable, `cardio`, is a binary indicator for cardiovascular disease. 
+
+
+### Independent Variables
+
+The independent variables I aim to consider are:
+
+  * `age` (quantitative): **Age of patient in years**
+  * `gender` (qualitative): **Gender of patient**
+  * `height` (quantitative): **Height of patient in cm**
+  * `weight` (quantitative): **Weight of patient in kg**
+  * `ap_hi` (quantitative): **Systolic blood pressure**
+  * `ap_lo` (quantitative): **Diastolic blood pressure**
+  * `cholesterol` (qualitative): **Cholesterol level of patient**
+  * `gluc` (qualitative): **Glucose level of patient**
+  * `smoke` (qualitative): **Binary variable to determine if a patient smokes**
+  * `alco` (qualitative): **Binary variable to determine if a patient drinks alcohol**
+  * `active` (qualitative): **Yes/No if patient is physically active**
+
+Some notes on specific variables:
+
+  * `gender` is limited to a dichotomous identity (male or female)
+  * `ap_hi` and `ap_lo` seemed to have data values that were inaccurate. These problematic rows were eliminated.
+  *  I transformed `age` to be in terms of years rather than days.
+
+### Type of Study
+
+This is an observational study.
+
+
+## Part 3 - Exploratory data analysis
+
+### Summary Statistics
+
+```{r}
+summary(cardio.data)
+```
+
+```{r}
+# numeric data
+st(cardio.data[,c(1,3:6)], title = "Numeric Summary Statistics")
+
+# categorical data
+st(cardio.data[,-c(1,3:6,8,13)], title = "Categorical Summary Statistics")
+```
+
+### Exploratory Visualizations
+
+##### Looking for Multicolinearity
+
+```{r}
+# anything above 0.7 generally indicates multicolinearity
+ggpairs(cardio.data, columns = c(1,3:6))
+```
+
+
+Since the variables `ap_hi`(Systolic blood pressure) and `ap_lo`(Diastolic blood pressure) are strongly correlated ($0.697 \approx 0.7$) I will only use `ap_hi` in my logistic regression analysis.
+
+
+#### Histograms
+
+Age, Blood pressure, 
+
+```{r}
+ggplot(cardio.data, aes(x=age)) +
+  geom_histogram(binwidth=4, fill="#69b3a2", color="#e9ecef") +
+  ggtitle("Distribution: Age")
+```
+
+Most patients are in their late 40s to early 60s
+
+```{r}
+ggplot(cardio.data, aes(x=ap_hi)) +
+  geom_histogram(binwidth=10, fill="#69b3a2", color="#e9ecef") +
+  ggtitle("Distribution: Systolic Blood Pressure")
+```
+
+Most data points for `ap_hi` fall 115 mm Hg and 125 mm Hg. 
+
+Information from the CDC [4] claims that people:
+
+* Are **NORMAL** blood pressure at values less than 120 mm Hg
+
+* Are **AT RISK** of high blood pressure between the values 120 -139 mm Hg
+
+* Have **HIGH BLOOD PRESSURE** at 140 mm Hg or higher
+
+In context of this dataset:
+```{r}
+new.data <- cardio.data
+
+new.data$norm.bp <- ifelse(new.data$ap_hi <= 120, 1, 0)
+
+new.data$at.risk <- ifelse(new.data$ap_hi > 120 & new.data$ap_hi < 140, 1, 0)
+
+new.data$high.bp <- ifelse(new.data$ap_hi >= 140, 1, 0)
+
+new.data %>%
+  summarise(Normal = sum(norm.bp)/68781, At_Risk = sum(at.risk)/68781, High = sum(high.bp)/68781)
+```
+
+
+```{r}
+ggplot(cardio.data, aes(x=weight)) +
+  geom_histogram(binwidth=15, fill="#69b3a2", color="#e9ecef") +
+  ggtitle("Weight")
+```
+
+Most of the data falls within 50 to 100 kilograms (110 to 220 lbs)
+
+#### Boxplots
+
+```{r}
+# Age
+age1 <- ggplot(cardio.data, aes(x = cardio, y = age)) +
+  geom_boxplot() +
+  ggtitle("Boxplot: Age")
+
+# Height
+height1 <- ggplot(cardio.data, aes(x = cardio, y = height)) +
+  geom_boxplot() +
+  ggtitle("Boxplot: Height")
+
+# Weight
+weight1 <- ggplot(cardio.data, aes(x = cardio, y = weight)) +
+  geom_boxplot() +
+  ggtitle("Boxplot: Weight")
+
+# Systolic blood pressure
+sbp <- ggplot(cardio.data, aes(x = cardio, y = ap_hi)) +
+  geom_boxplot() +
+  ggtitle("Boxplot: Systolic blood pressure")
+
+# Put plots together
+ggarrange(age1, height1, weight1, sbp,
+          labels = c("A","B","C","D"),
+          ncol = 2, nrow = 2)
+```
+
+* **Age** looks to have an affect on whether a patient has cardiovascular disease due to boxplots in plot A differing across groups.
+* **Height** does not seem to have significant differences across groups, therefore it will not be included in final model.
+* **Weight** does not seem to have significant differences across groups, therefore it will not be included in final model.
+* **Systolic Blood Pressure** differs between groups, therefore it will remain in the logistic regression model.
+
+
+
+## Part 4 - Logistic Regression
+
+```{r}
+# Split the data into training and test set
+
+set.seed(12345)
+
+training.samples <- cardio.data$cardio %>% 
+  createDataPartition(p = 0.7, list = FALSE)
+
+
+train.data <- cardio.data[training.samples, ]
+test.data <- cardio.data[-training.samples, ]
+
+
+summary(train.data$cardio)
+summary(test.data$cardio)
+```
+
+Both training and testing datasets have similar `cardio` factor level distributions.
+
+### Using Step-wise Variable selection to create Logistic Regression Model
+
+A model was programmed to generate the highest AIC given the full range of variables, not including `height`, `weight` and `ap_lo`. Step-wise selection was used to create the model. The step wise selection process eliminated `gender` from the model. 
+
+```{r}
+# stepwise variable selection
+
+full.model <- glm(cardio ~ age + ap_hi + cholesterol + active + alco + gluc + smoke + gender, data = train.data, family = binomial)
+
+step.model <- full.model %>% stepAIC(trace = FALSE)
+summary(step.model)
+```
+
+In the summary output for the step-wise model, all variables, except `glucHigher`, are statistically significant. The variables with the largest log odds are:
+
+* Categorical:
+  + `cholesterol`
+    - a person who has `cholesterolHigher`, rather than `cholesterolNorm` will see an increase in the log odds of `cardio` by 0.37
+    - a person who has `cholesterolHighest`, rather than `cholesterolHigher` will see an increase in the log odds of `cardio` by 1.16
+  + `active`
+    - a person who is `activeYes` will see a decrease in the log odds of `cardio` by 0.24
+  + `gluc`
+    - a person who has `glucHighest`, rather than `glucHigher` will see a decrease in the log odds of `cardio` by 0.36
+
+* Numeric:
+  + `ap_hi`
+    - Every millimeter of mercury in `ap_hi` increases the log odds of `cardio` by 0.06
+  + `age`
+    - Every year increase in `age` increases the log odds of `cardio` by 0.05
+
+#### Analyze the predicted results of model
+
+```{r}
+# Create confusion matrix for model results
+probabilities2 <- full.model %>% predict(test.data, type = "response")
+
+predicted.classes2 <- ifelse(probabilities2 > 0.5, "Yes", "No")
+
+model.results2 <- full.model %>% predict(test.data, type = "response")
+
+testing.results2 <- test.data$cardio
+
+model.vs.testing2 <- table(predicted.classes2, testing.results2)
+
+colnames(model.vs.testing2) <- c("No", "Yes")
+rownames(model.vs.testing2) <- c("No", "Yes")
+
+confusionMatrix(model.vs.testing2) 
+```
+
+
+### Logistic Regression Model using fewer variables
+
+To reduce the number of variables in the model, I only considered `ap_hi` for predicting `cardio`.
+
+```{r}
+# cardio ~ ap_hi
+
+final.model <- glm(cardio ~ ap_hi, data = train.data, family = binomial)
+summary(final.model)
+```
+
+
+
+In the summary output above, `ap_hi` is statistically significant.
+
+
+* `ap_hi`
+ + Every millimeter of mercury in `ap_hi` increases the log odds of `cardio` by 0.07
+
+#### Analyze the predicted results of model
+
+```{r}
+
+probabilities1 <- final.model %>% predict(test.data, type = "response")
+
+predicted.classes1 <- ifelse(probabilities1 > 0.5, "Yes", "No")
+
+model.results1 <- final.model %>% predict(test.data, type = "response")
+
+testing.results1 <- test.data$cardio
+
+model.vs.testing1 <- table(predicted.classes1, testing.results1)
+
+colnames(model.vs.testing1) <- c("No", "Yes")
+rownames(model.vs.testing1) <- c("No", "Yes")
+
+confusionMatrix(model.vs.testing1) 
+```
+
+
+## Part 5 - Conclusion
+
+After analyzing the data from the cardiovascular disease dataset, the data shows that **Systolic Blood Pressure** is a significant predictor in determining if a patient suffers from cardiovascular disease. I was able to generate a model that had 71.25% accuracy in predicting of an unknown patient suffers from cardiovascular disease. 
+
+I also created a model to assess the predicting power with all variables from the dataset in the model, except height and diastolic blood pressure. The model was able to reach an accuracy level of 72.86% in predicting if an unknown patient suffers from cardiovascular disease. This overall performance is not much better than that of the simpler model, therefore the variables in the simple model are the more important variables for predicting cardiovascular disease.
+
+It can be concluded that **Blood Pressure** is the most associated factor in the dataset for predicting cardiovascular disease.
+
+## References
+
+1. https://www.who.int/news-room/fact-sheets/detail/cardiovascular-diseases-(cvds)
+
+2. https://www.cdc.gov/heartdisease/index.htm#:~:text=Heart%20disease%20is%20the%20leading,can%20lead%20to%20heart%20attack.
+
+3. https://www.kaggle.com/sulianova/cardiovascular-disease-dataset
+
+4. https://www.cdc.gov/bloodpressure/about.htm
+
+5. https://www.webmd.com/hypertension-high-blood-pressure/how-to-lower-blood-pressure
